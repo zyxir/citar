@@ -61,9 +61,9 @@
           (const long)
           (const short)))
 
-(defcustom citar-file-note-org-include nil
+(defcustom citar-org-note-include nil
   "The org note type."
-  :group 'citar
+  :group 'citar-org
   :type '(repeat (const :tag "Org ID" 'org-id)
                  (const :tag "Org-Roam :ROAM_REF:" 'org-roam-ref)))
 
@@ -260,9 +260,9 @@ strings by style."
               (citar--format-entry-no-widths
                entry
                template)))
-           (org-id (when (member 'org-id citar-file-note-org-include)
+           (org-id (when (member 'org-id citar-org-note-include)
                      (concat "\n:ID:   " uuid)))
-           (org-roam-key (when (member 'org-roam-ref citar-file-note-org-include)
+           (org-roam-key (when (member 'org-roam-ref citar-org-note-include)
                            (concat "\n:ROAM_REFS: @" key)))
            (prop-drawer (or org-id org-roam-key))
            (content
