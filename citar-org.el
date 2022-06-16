@@ -33,10 +33,15 @@
 
 (require 'citar)
 (require 'org)
+(require 'org-element)
 (require 'org-id)
 (require 'oc)
 (require 'oc-basic)
 (require 'oc-csl)
+
+;; Pre-1.0 API cleanup
+
+(make-obsolete 'citar-org-id-get-create 'citar-org--id-get-create "1.0")
 
 (declare-function citar-at-point "citar")
 (declare-function org-open-at-point "org")
@@ -128,7 +133,7 @@ Each function takes one argument, a citation."
   (let ((styles (citar-org--flat-styles)))
     (mapcar
      (lambda (style)
-       (if (and (string-search "/" style)
+       (if (and (string-match "/" style)
                 (< 1 (length style)))
            (propertize style 'face 'citar)
          (propertize style 'face 'citar-highlight)))
@@ -166,6 +171,12 @@ With PROC list, limit to specific processor(s)."
 (defun citar-org-insert-citation (keys &optional style)
   "Insert KEYS in org-cite format, with STYLE."
   (let ((context (org-element-context)))
+    (when style
+      (let ((raw-style
+             (citar-org-select-style)))
+             (setq style
+                   (if (string-equal raw-style "") raw-style
+                     (concat "/" raw-style)))))
     (if-let ((citation (citar-org--citation-at-point context)))
         (when-let ((keys (seq-difference keys (org-cite-get-references citation t)))
                    (keystring (mapconcat (lambda (key) (concat "@" key)) keys "; "))
@@ -198,7 +209,7 @@ ARG is used as the prefix argument."
   (call-interactively citar-at-point-function))
 
 ;;;###autoload
-(defun citar-org-select-style ()
+(defun citar-org-select-style (&optional _arg)
   "Complete a citation style for org-cite with preview."
   (let* ((oc-styles
           ;; Sort the list upfront, but let completion UI handle beyond that.
@@ -252,7 +263,7 @@ strings by style."
 
 ;;; Org note function
 
-(defun citar-org-id-get-create (&optional force)
+(defun citar-org--id-get-create (&optional force)
   "Call `org-id-get-create` while maintaining point.
 
 If point is at the beginning of the buffer and a new properties
@@ -275,13 +286,13 @@ With optional argument FORCE, force the creation of a new ID."
   (when (and (derived-mode-p 'org-mode)
              (fboundp 'org-roam-buffer-p)
              (org-roam-buffer-p))
-    (ignore-errors (citar-org-id-get-create))
+    (ignore-errors (citar-org--id-get-create))
     (ignore-errors (org-roam-ref-add (concat "@" key)))))
 
 ;;;###autoload
 (defun citar-org-format-note-default (key entry filepath)
   "Format a note FILEPATH from KEY and ENTRY."
-    (let* ((template (citar-get-template 'note))
+    (let* ((template (citar--get-template 'note))
            (note-meta
             (when template
               (citar--format-entry-no-widths
@@ -320,13 +331,19 @@ With optional argument FORCE, force the creation of a new ID."
 ;;; Functions for editing/modifying citations
 
 (defun citar-org--reference-at-point (&optional context)
-  "Return citation-reference org-element at point, if any."
+  "Return citation-reference org-element at point, if any.
+
+Argument CONTEXT is an org element at point, usually a citation
+or citation-reference."
   (when-let ((context (or context (org-element-context))))
     (when (eq 'citation-reference (org-element-type context))
       context)))
 
 (defun citar-org--citation-at-point (&optional context)
-  "Return citation element containing point, if any."
+  "Return citation element containing point, if any.
+
+Argument CONTEXT is an org element at point, usually a citation
+or citation-reference."
   (let ((element (or context (org-element-context))))
     (while (and element (not (eq 'citation (org-element-type element))))
       (setq element (org-element-property :parent element)))
